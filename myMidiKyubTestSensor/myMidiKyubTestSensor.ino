@@ -1,13 +1,13 @@
 #include <CapacitiveSensor.h>
 
-const int sensorAmount = 7;
+const int sensorAmount = 4;
 
 #define CS(Y) CapacitiveSensor(12, Y)
 
 CapacitiveSensor cs[] = {CS(0), CS(1), CS(2), CS(3), CS(4), CS(6), CS(7)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
 
-long t = 1000;
-long off = 400;
+long t = 900;
+long off = 200;
 long lastMeasure[sensorAmount];
 float coef = 0.5;
 bool noteState[sensorAmount];
