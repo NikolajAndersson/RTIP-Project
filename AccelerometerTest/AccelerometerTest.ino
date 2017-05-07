@@ -1,5 +1,4 @@
-//connect 3.3v to AREF
-
+// Test the ADXL335 Accelerometer and map the values to MIDI
 
 const int analogPinX = A0; 
 const int analogPinY = A2;
@@ -15,7 +14,6 @@ void loop() {
   //analogReference(EXTERNAL);    //connect 3.3v to AREF
   // read the analog in value:
   int x = analogRead(analogPinX);            
-  // map it to the range of the analog out:
   int velocityX = map(x, 0, 1023, 0, 127);
   // change the analog out value:
   delayMicroseconds(30); // from kyub                     
