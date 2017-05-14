@@ -1,6 +1,6 @@
 #include <CapacitiveSensor.h>
 
-const int sensorAmount = 4;
+const int sensorAmount = 12;
 const int sensorBufferAmount = 20;
 long sensorBuffer[sensorAmount][sensorBufferAmount];
 long lastMeasure[sensorAmount];
@@ -10,9 +10,9 @@ unsigned long timer[sensorAmount];
 long meanThreshold[sensorAmount];
 int buf[sensorAmount];
 
-#define CS(Y) CapacitiveSensor(12, Y)
+#define CS(Y) CapacitiveSensor(14, Y)
 
-CapacitiveSensor cs[] = {CS(0), CS(1), CS(2), CS(3), CS(4), CS(6), CS(7)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
+CapacitiveSensor cs[] = {CS(0), CS(1), CS(2), CS(3), CS(5), CS(6), CS(7), CS(8), CS(9),CS(10),CS(11), CS(12)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
 
 long minithreshold = 300;
 long off = 400;
@@ -52,26 +52,26 @@ void loop() {
     timer[turn] = millis();
     // MIDI note on
     noteState[turn] = 1;
-    //    Serial.print(dynamicOffset[turn]);
-    //    Serial.println("\t");
-    //    Serial.print(noteState[turn]);
-    //    Serial.print("\t");
-    //    Serial.print(measure);
-    //    Serial.print("\t");
-    //    Serial.println("ON");
+        Serial.print(dynamicOffset[turn]);
+        Serial.println("\t");
+        Serial.print(noteState[turn]);
+        Serial.print("\t");
+        Serial.print(measure);
+        Serial.print("\t");
+        Serial.println("ON");
 
   } else if (measure < meanThreshold[turn] && noteState[turn] == 1 && millis() - timer[turn] > 10)
   {
     //MIDI note off
     noteState[turn] = 0;
     timer[turn] = millis();
-    //    Serial.print(turn);
-    //    Serial.print("\t");
-    //    Serial.print(noteState[turn]);
-    //    Serial.print("\t");
-    //    Serial.print(measure);
-    //    Serial.print("\t");
-    //    Serial.println("OFF");
+        Serial.print(turn);
+        Serial.print("\t");
+        Serial.print(noteState[turn]);
+        Serial.print("\t");
+        Serial.print(measure);
+        Serial.print("\t");
+        Serial.println("OFF");
   } else if (noteState[turn] == 0 && millis() - timer[turn] > 10) {
     timer[turn] = millis();
     // if the sensed value is neither a note on or off
@@ -80,16 +80,16 @@ void loop() {
     sensorBuffer[turn][buf[turn]] = measure;
     buf[turn] = (buf[turn] + 1) % sensorBufferAmount;
 
-    Serial.print(turn);
-    Serial.print("\t");
-    Serial.print(buf[turn]);
-    Serial.print("\t");
-
-    Serial.print(sensorBuffer[turn][buf[turn]]);
-    Serial.print("\t");
-    Serial.print(meanThreshold[turn]);
-    Serial.print("\t");
-    Serial.println(dynamicOffset[turn]);
+//    Serial.print(turn);
+//    Serial.print("\t");
+//    Serial.print(buf[turn]);
+//    Serial.print("\t");
+//
+//    Serial.print(sensorBuffer[turn][buf[turn]]);
+//    Serial.print("\t");
+//    Serial.print(meanThreshold[turn]);
+//    Serial.print("\t");
+//    Serial.println(dynamicOffset[turn]);
 
     // reset threshold
     meanThreshold[turn] = 0;

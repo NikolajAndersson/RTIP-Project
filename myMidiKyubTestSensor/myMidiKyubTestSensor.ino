@@ -1,10 +1,11 @@
 #include <CapacitiveSensor.h>
 
-const int sensorAmount = 4;
+const int sensorAmount = 12;
 
-#define CS(Y) CapacitiveSensor(12, Y)
+#define CS(Y) CapacitiveSensor(14, Y)
 
-CapacitiveSensor cs[] = {CS(0), CS(1), CS(2), CS(3), CS(4), CS(6), CS(7)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
+CapacitiveSensor cs[] = {CS(0), CS(1), CS(2), CS(3), CS(5), CS(6), CS(7), CS(8), CS(9),CS(10),CS(11), CS(12)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
+//CapacitiveSensor cs[] = {CS(17), CS(14),CS(15),CS(16)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
 
 long t = 900;
 long off = 200;
@@ -30,11 +31,11 @@ void loop() {
 
   long m =  cs[turn].capacitiveSensor(30);
   long measure = coef * m + lastMeasure[turn] * coef;
-//  Serial.print(turn);
-//  Serial.print("\t");
-//  Serial.print(noteState[turn]);
-//  Serial.print("\t");
-//  Serial.println(measure);
+  Serial.print(turn);
+  Serial.print("\t");
+  Serial.print(noteState[turn]);
+  Serial.print("\t");
+  Serial.println(measure);
 
   if (measure > t && noteState[turn] == 0 && millis() - timer[turn] > 10)
   {

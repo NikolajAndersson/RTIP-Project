@@ -42,7 +42,7 @@ void loop() {
   Serial.print("\t mapped z = " );                       
   Serial.println(velocityZ); 
   
-  delay(200);                     
+  delay(20);                     
 }
 
 
