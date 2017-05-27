@@ -1,8 +1,8 @@
 //************************************
 //************************************
-//**         Kyub Basic             **
+//**         Kyub-kulele            **
 //**           5/7/2014             **
-//** Low latency, Scale selection   **
+//** Low latency, chord selection   **
 //**         with RGB LED           **
 //************************************
 //************************************
@@ -15,27 +15,62 @@
 //************************************
 
 //Debugging settings
-int consolemidimode=0; //consolemode=0 midimode=1  capacitive mode = 2 accelerometer=3 
+int consolemidimode=3; //consolemode=0 midimode=1  capacitive mode = 2 accelerometer=3 
 
 //Teensy pin assignments
 //int profilepin=18;  //used for latency experiments
-const byte modebutton=1;
-byte scale=0;  //scale selection
-const byte Rled = 12; //tricolor LED pins
-const byte Gled = 14;
-const byte Bled = 15;
-const byte driverpin = 4; //common pad drive pin
-const byte zpin=2; //accelerometer axes inputs
-const byte xpin=1;
-const byte ypin=0;
+const byte modebutton=22;
+boolean chord1=0;  //determined by pads 9 and 10
+boolean chord2=0;
+byte chordselect=0;  //chord selection
+byte lastchordselect=0;
+byte chordpallet=0;  //chord pallet selection
+const byte Rled = 4; //tricolor LED pins
+const byte Gled = 4;
+const byte Bled = 4;
+const byte driverpin = 14; //common pad drive pin
+const byte zpin=A7; //accelerometer axes inputs
+const byte ypin=A6;
+const byte xpin=A5;
 
-byte padnote[11] = {
-  69,60,65,62,61,67,64,71,70,66,70};  //arbitrary initial pad note values
+byte padnote[9] = {
+  69,60,65,62,61,67,64,71,70};  //arbitrary initial pad note values
+
+//first chord pallet 1 3m 4 5
+byte chordA0[9]={
+  52,64,55,67,71,59,76,79,83};//Em
+byte chordA1[9]={
+  48,60,52,64,55,72,67,76,84};//C
+byte chordA2[9]={
+  53,65,57,69,72,60,77,81,84};//F
+byte chordA3[9]={
+  55,67,59,71,74,62,79,83,86};//G
+
+//second chord pallet 1 2m 4 5 
+byte chordB0[9]={
+  51,48,54,64,63,60,67,72,78}; //Dm
+byte chordB1[9]={
+  48,60,52,64,55,72,67,76,84};//C
+byte chordB2[9]={
+  53,65,57,69,72,60,77,81,84};//F
+byte chordB3[9]={
+  55,67,59,71,74,62,79,83,86};//G
+
+//third chord pallet 1 3 6m 1
+byte chordC0[9]={
+  67,55,71,55,62,74,79,86,83};//G
+byte chordC1[9]={
+  55,67,59,71,74,62,79,83,86};//G
+byte chordC2[9]={
+  47,59,51,63,54,71,66,75,83};//B
+byte chordC3[9]={
+  52,64,55,76,71,59,76,67,83}; //Em
+
 
 //misc varibles
 byte channel=0x94;  //arbitrary MIDI channel--change as desired 
 byte pad[11]={
-  0,1,2,3,4,5,6,7,8,9,10};
+  0,1,2,3,5,6,7,8,9,10,11};
 boolean padstate[11];  //state of pad as touched (HIGH) or not (LOW)
 byte padmode[11];  //state of note as it is processed
 //   0 = ready for new pad touch
@@ -47,7 +82,7 @@ long int padlasttime[11];  //last time pad was triggered
 byte padlastchannel[11];  //last channel held to turn right note off after key changes
 byte padlastnote[11];  //last note held to turn right note off after key change
 byte padvolume[11];  //current note volume
-byte pnum=2; //index for pads through each loop
+byte pnum=0; //index for pads through each loop
 
 //capactivie sensing variables
 int firsttime=0;  //trigger for capacitive calibration
@@ -79,6 +114,7 @@ int triggerpoint=0; //time of pad hit
 long acc_calibrationx=0; //A/D calibration values (may not be needed)
 long acc_calibrationy=0;
 long acc_calibrationz=0;
+boolean hithappened=LOW;
 int xaxispeak=0; //peaks and valleys of acceleration waveforms
 int xaxisvalley=0;
 int yaxispeak=0;
@@ -111,15 +147,32 @@ void setup()
 
   pinMode(modebutton, INPUT);
 
-
+  pinMode(pad[0], INPUT);
+  pinMode(pad[1], INPUT);
   pinMode(pad[2], INPUT);
+  pinMode(pad[3], INPUT);
+  pinMode(pad[4], INPUT);
+  pinMode(pad[5], INPUT);
+  pinMode(pad[6], INPUT);
+  pinMode(pad[7], INPUT);
+  pinMode(pad[8], INPUT);
+  pinMode(pad[9], INPUT);
+  pinMode(pad[10], INPUT);
 
   digitalWrite(modebutton, HIGH);
 
   //turn off pullup resistors--should not be needed
- 
+  digitalWrite(pad[0], LOW);
+  digitalWrite(pad[1], LOW); 
   digitalWrite(pad[2], LOW);
-  
+  digitalWrite(pad[3], LOW);
+  digitalWrite(pad[4], LOW);
+  digitalWrite(pad[5], LOW);
+  digitalWrite(pad[6], LOW);
+  digitalWrite(pad[7], LOW);
+  digitalWrite(pad[8], LOW);
+  digitalWrite(pad[9], LOW);
+  digitalWrite(pad[10], LOW);    
 }//end setup
 
 //************************************
@@ -132,58 +185,46 @@ void setup()
 void loop() 
 {
 
-  //set scale according to presses of mode button
+  //set chord pallet according to presses of mode button
   if (digitalRead(modebutton)==LOW)
   {
-    if (scale==0) //C major--yellow
+    if (chordpallet==0) //
     {
-
-      analogWrite(Rled, 0);
+      analogWrite(Rled, 0); 
       delay (1000);
-      analogWrite(Rled, 255); 
-      analogWrite(Gled, 255); 
-      analogWrite(Bled, 255);  
-      scale=1;
+      analogWrite(Rled, 255);
+      chordpallet=1;
     }
 
-
-    if (scale==0)  //*************************************************
-    {//c major scale
-//      padnote[0]=60;
-//      padnote[1]=62;
-      padnote[2]=64;
-//      padnote[3]=65;
-//      padnote[4]=67;
-//      padnote[5]=69;
-//      padnote[6]=71;
-//      padnote[7]=72;
-//      padnote[8]=74;
-//      padnote[9]=76;
-//      padnote[10]=77;
+    else if (chordpallet==1) 
+    {
+      analogWrite(Gled, 0); 
+      delay (1000);
+      analogWrite(Gled, 255);
+      chordpallet=2;
     }
-
-   
-
+    else if (chordpallet==2) 
+    {
+      analogWrite(Bled, 0); 
+      delay (1000);
+      analogWrite(Bled, 255);
+      chordpallet=0;
+    } 
   }
+
 
   //pad calibration--early after boot
   if (firsttime<20) firsttime++; 
   if (firsttime==19) 
   {
-    for (int x=0; x<11; x++)  cap_calibration[x]=chargetime[x];  
-    for (int x=0; x<2; x++)
-    {
-      acc_calibrationx=analogRead(xpin);  //!!!!added all this
-      acc_calibrationy=analogRead(ypin);
-      acc_calibrationz=analogRead(zpin);
-    }
+    for (int x=0; x<12; x++)  cap_calibration[x]=chargetime[x];  
   } 
 
   //****************************************************************
   //loop through each of 11 pads according to pnum
   //****************************************************************
-//  if (pnum<10) pnum++; 
-//  else pnum=0;   
+  if (pnum<10) pnum++; 
+  else pnum=0;   
   overflow=0;
 
   //*****************************************************************
@@ -191,8 +232,30 @@ void loop()
   //***********************start cap sensing and accel sensing ******
   //for high speed, read A/D for x, y, and z interleaved at times of necessary delay
 
-  if (circbuffpointer<20) circbuffpointer++; //!!!set to 20 tops
-  else circbuffpointer=0; //acell. axis circular buffer pointer
+  if (circbuffpointer<19) circbuffpointer++; //!!!set to 20 tops
+  else
+  {
+    circbuffpointer=0; //accel. axis circular buffer pointer
+    if (hithappened==LOW)  //if one buffer cycle without hit, use data for calibrations
+    {
+      //running calibration of accelerometer
+      acc_calibrationx=0; //zero out
+      acc_calibrationy=0;
+      acc_calibrationz=0;
+
+
+      for (int x=0; x<20; x++)  
+      {
+        acc_calibrationx+=circularaccbufferx[x]; 
+        acc_calibrationy+=circularaccbuffery[x];
+        acc_calibrationz+=circularaccbufferz[x]; 
+      } 
+      acc_calibrationx=int(acc_calibrationx/20);
+      acc_calibrationy=int(acc_calibrationy/20);
+      acc_calibrationz=int(acc_calibrationz/20);
+    }
+    hithappened=LOW;
+  }
 
   //first measure charge up time, then measure fall time to cut sensitivity to gate threshold level
   //CHARGEUP
@@ -275,8 +338,57 @@ void loop()
   //****************************************************************************************
 
   //touch detected ****************************
-  if (chargetime[pnum]-cap_calibration[pnum]>hysteresishigh)padstate[pnum]=HIGH;
+  if (chargetime[pnum]-cap_calibration[pnum]>hysteresishigh)
+  {
+    padstate[pnum]=HIGH;
+    if (pnum<9)hithappened=HIGH; //exclude chord keys
+  }
   else if (chargetime[pnum]-cap_calibration[pnum]<hysteresislow) padstate[pnum]=LOW;
+
+  //special non playing pads--chord selectors
+  if (padstate[9]==1) chord1=HIGH;
+  else chord1=LOW;
+  if (padstate[10]==1) chord2=HIGH; 
+  else chord2=LOW;
+
+  if ((chord1==LOW)&&(chord2==LOW)) chordselect=0;
+  else if ((chord1==LOW)&&(chord2==HIGH)) chordselect=1;
+  else if ((chord1==HIGH)&&(chord2==LOW)) chordselect=2;
+  else if ((chord1==HIGH)&&(chord2==HIGH)) chordselect=3;
+
+
+  //load chord pallets *************************************************
+
+  if (chordselect!=lastchordselect)
+  {
+    lastchordselect=chordselect;
+    if (chordpallet==0)  
+    {
+      if (chordselect==0)for (int i=0; i<9; i++) padnote[i]=chordA0[i];
+      if (chordselect==1)for (int i=0; i<9; i++) padnote[i]=chordA1[i];
+      if (chordselect==2)for (int i=0; i<9; i++) padnote[i]=chordA2[i];
+      if (chordselect==3)for (int i=0; i<9; i++) padnote[i]=chordA3[i];
+    }
+    if (chordpallet==1)  
+    {
+      if (chordselect==0)for (int i=0; i<9; i++) padnote[i]=chordB0[i];
+      if (chordselect==1)for (int i=0; i<9; i++) padnote[i]=chordB1[i];
+      if (chordselect==2)for (int i=0; i<9; i++) padnote[i]=chordB2[i];
+      if (chordselect==3)for (int i=0; i<9; i++) padnote[i]=chordB3[i];
+    }
+    if (chordpallet==2)  
+    {
+      if (chordselect==0)for (int i=0; i<9; i++) padnote[i]=chordC0[i];
+      if (chordselect==1)for (int i=0; i<9; i++) padnote[i]=chordC1[i];
+      if (chordselect==2)for (int i=0; i<9; i++) padnote[i]=chordC2[i];
+      if (chordselect==3)for (int i=0; i<9; i++) padnote[i]=chordC3[i];
+    }
+  }
+
+  //deactivate these pins for all other functions
+  padmode[9]=4;
+  padmode[10]=4;
+
 
   if ((padmode[pnum]==0) && (padstate[pnum]==HIGH)) //ready for new note
   {
@@ -290,8 +402,10 @@ void loop()
   //check touch induced acceleration
   if (triggerpoint<11) triggerpoint++; //!!
   //let buffer run a bit then find max and load it into pending notes
+
   if (triggerpoint==10) //half of buffer==5.3 ms in this build
   {
+
     yaxispeak=acc_calibrationy;
     yaxisvalley=acc_calibrationy;
     xaxispeak=acc_calibrationx;
@@ -299,7 +413,7 @@ void loop()
     zaxispeak=acc_calibrationz;
     zaxisvalley=acc_calibrationz;
 
-    for (int x=0; x<20; x++)  //!!grab peaks and valleys of 100 samples of accelerometer
+    for (int x=0; x<19; x++)  //!!grab peaks and valleys of 100 samples of accelerometer
     {
       if (circularaccbufferx[x]>xaxispeak)  xaxispeak=circularaccbufferx[x];
       if (circularaccbufferx[x]<xaxisvalley) xaxisvalley=circularaccbufferx[x];
@@ -333,25 +447,25 @@ void loop()
 
         if ((x==4)) //side of Kyub
         {
-          padvolume[x]=-xaxisvalley; 
+          padvolume[x]=-yaxisvalley; 
           padmode[x]=2;
         }
 
         if ((x==3) )
         {
-          padvolume[x]=xaxispeak;  
+          padvolume[x]=yaxispeak;  
           padmode[x]=2;
         }
 
         if ((x==0) )
         {
-          padvolume[x]=-yaxisvalley;
+          padvolume[x]=-xaxisvalley;
           padmode[x]=2;
         }
 
         if ((x==7)||(x==8)||(x==9)||(x==10))
         {
-          padvolume[x]=yaxispeak;
+          padvolume[x]=xaxispeak;
           padmode[x]=2;
         }
       }
@@ -508,13 +622,6 @@ void colorcalculation(byte loudness, byte padhit) //calculates LED color by pad
     Gledinput=offbright;
     Bledinput=offbright;
   }
-  Serial.println(padhit); 
-  Serial.print("Rledinput "); 
-  Serial.println(Rledinput); 
-  Serial.print("Gledinput "); 
-  Serial.println(Gledinput); 
-  Serial.print("Bledinput "); 
-  Serial.println(Bledinput); 
 }
 
 void acceleration_dump(void)  //debuging routine
@@ -532,34 +639,37 @@ void acceleration_dump(void)  //debuging routine
     Serial.print(p);
     Serial.print(" x:");
     Serial.print(circularaccbufferx[circbuffpointer+indexer]-int(acc_calibrationx)); //!! remobed 100s
-    Serial.print(" raw:  ");
-    Serial.print(circularaccbufferx[circbuffpointer+indexer]);
     Serial.print(" ~y:");
     Serial.print(circularaccbuffery[circbuffpointer+indexer]-int(acc_calibrationy));
     Serial.print(" z:");
     Serial.print(circularaccbufferz[circbuffpointer+indexer]-int(acc_calibrationz));
     indexer++;
-    if (indexer+circbuffpointer>20) indexer=-circbuffpointer; ///!!!!  
+    if (indexer+circbuffpointer>19) indexer=-circbuffpointer; ///!!!!  
   } 
   Serial.println ("");   
-  Serial.print (" zaxis peak:");
-  Serial.print (zaxispeak);
   Serial.print (" xaxis peak:");
   Serial.print (xaxispeak);
   Serial.print (" yaxis peak:");
-  Serial.println (yaxispeak);
+  Serial.print (yaxispeak);
+  Serial.print (" zaxis peak:");
+  Serial.println (zaxispeak);
 
-  Serial.print (" zaxis valley:");
-  Serial.print (zaxisvalley);
   Serial.print (" xaxis valley:");
   Serial.print (xaxisvalley);
-  Serial.print (" yaxis valley:");
-  Serial.println (yaxisvalley);
+  Serial.print ("  yaxis valley:");
+  Serial.print (yaxisvalley);
+  Serial.print ("  zaxis valley:");
+  Serial.println (zaxisvalley);
+  Serial.println ("  ");
+
 
   Serial.print (" x cal raw:");
-  Serial.println (acc_calibrationx);
-  Serial.print (" x cal:  ");
-  Serial.println (int(acc_calibrationx)); //!!
+  Serial.print (acc_calibrationx);
+  Serial.print ("  y cal raw:");
+  Serial.print (acc_calibrationy);
+  Serial.print ("  z cal raw:");
+  Serial.println (acc_calibrationz);
+
 } 
 
 void chargedata_dump(void) //debugging routine

@@ -12,9 +12,11 @@ int buf[sensorAmount];
 
 #define CS(Y) CapacitiveSensor(14, Y)
 
-CapacitiveSensor cs[] = {CS(0), CS(1), CS(2), CS(3), CS(5), CS(6), CS(7), CS(8), CS(9),CS(10),CS(11), CS(12)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
+CapacitiveSensor cs[] = {CS(0), CS(1), CS(2), CS(3), CS(5), CS(6), CS(7), CS(8), CS(9), CS(10), CS(11), CS(12)}; // 10M resistor between pins 4 & 2, pin 2 is sensor pin, add a wire and or foil if desired
 
 long minithreshold = 300;
+int dynamicMax = 1000;
+int dynamicMin = 200;
 long off = 400;
 int turn = 0;
 
@@ -37,41 +39,61 @@ void setup() {
 void loop() {
 
   long measure = cs[turn].capacitiveSensor(30);
-  //  Serial.print(turn);
-  //  Serial.print("\t");
-  //  Serial.print(noteState[turn]);
-  //  Serial.print("\t");
-  //  Serial.println(meanThreshold[turn]);
+  //    Serial.print(turn);
+  //    Serial.print("\t");
+  //    Serial.print(noteState[turn]);
+  //    Serial.print("\t");
+  //    Serial.println(meanThreshold[turn]);
 
   if (measure > meanThreshold[turn] + dynamicOffset[turn] && noteState[turn] == 0 && millis() - timer[turn] > 10)
   {
     dynamicOffset[turn] = (measure - meanThreshold[turn]);
-    if (dynamicOffset[turn] > 500) dynamicOffset[turn] = 500;
-    else if (dynamicOffset[turn] < 200) dynamicOffset[turn] = 200;
+    if (dynamicOffset[turn] > dynamicMax) dynamicOffset[turn] = dynamicMax;
+    else if (dynamicOffset[turn] < dynamicMin) dynamicOffset[turn] = dynamicMin;
 
     timer[turn] = millis();
     // MIDI note on
     noteState[turn] = 1;
-        Serial.print(dynamicOffset[turn]);
-        Serial.println("\t");
-        Serial.print(noteState[turn]);
-        Serial.print("\t");
-        Serial.print(measure);
-        Serial.print("\t");
-        Serial.println("ON");
+    Serial.print("Sensor: ");
+    Serial.print(turn);
+    Serial.print("\t");
+    Serial.print("Measurement: ");
+    Serial.print(measure);
+    Serial.print("\t");
+    Serial.print("Threshold: ");
+    Serial.print(meanThreshold[turn]);
+    Serial.print("\t");
+    Serial.print("Threshold: ");
+    Serial.print(meanThreshold[turn]);
+    Serial.print("\t");
+    Serial.print("Dynamic offset: ");
+    Serial.print(dynamicOffset[turn]);
+    Serial.print("\t");
+
+    Serial.println("ON");
 
   } else if (measure < meanThreshold[turn] && noteState[turn] == 1 && millis() - timer[turn] > 10)
   {
     //MIDI note off
     noteState[turn] = 0;
     timer[turn] = millis();
-        Serial.print(turn);
-        Serial.print("\t");
-        Serial.print(noteState[turn]);
-        Serial.print("\t");
-        Serial.print(measure);
-        Serial.print("\t");
-        Serial.println("OFF");
+    Serial.print("Sensor: ");
+    Serial.print(turn);
+    Serial.print("\t");
+    Serial.print("Measurement: ");
+    Serial.print(measure);
+    Serial.print("\t");
+    Serial.print("Threshold: ");
+    Serial.print(meanThreshold[turn]);
+    Serial.print("\t");
+    Serial.print("Threshold: ");
+    Serial.print(meanThreshold[turn]);
+    Serial.print("\t");
+    Serial.print("Dynamic offset: ");
+    Serial.print(dynamicOffset[turn]);
+    Serial.print("\t");
+
+    Serial.println("OFF");
   } else if (noteState[turn] == 0 && millis() - timer[turn] > 10) {
     timer[turn] = millis();
     // if the sensed value is neither a note on or off
@@ -80,16 +102,16 @@ void loop() {
     sensorBuffer[turn][buf[turn]] = measure;
     buf[turn] = (buf[turn] + 1) % sensorBufferAmount;
 
-//    Serial.print(turn);
-//    Serial.print("\t");
-//    Serial.print(buf[turn]);
-//    Serial.print("\t");
-//
-//    Serial.print(sensorBuffer[turn][buf[turn]]);
-//    Serial.print("\t");
-//    Serial.print(meanThreshold[turn]);
-//    Serial.print("\t");
-//    Serial.println(dynamicOffset[turn]);
+    //    Serial.print(turn);
+    //    Serial.print("\t");
+    //    Serial.print(buf[turn]);
+    //    Serial.print("\t");
+    //
+    //    Serial.print(sensorBuffer[turn][buf[turn]]);
+    //    Serial.print("\t");
+    //    Serial.print(meanThreshold[turn]);
+    //    Serial.print("\t");
+    //    Serial.println(dynamicOffset[turn]);
 
     // reset threshold
     meanThreshold[turn] = 0;
@@ -106,5 +128,5 @@ void loop() {
   //lastMeasure[turn] = measure;
   turn = (turn + 1) % sensorAmount;
 
-  //delay(100);
+  delay(20);
 }
